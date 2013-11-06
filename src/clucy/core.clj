@@ -254,7 +254,6 @@
                          "double"  (NumericRangeQuery/newDoubleRange field (as-double value) (as-double value) true true)
                          (TermQuery. (Term. field (.toLowerCase (as-str value)))) ))
                      BooleanClause$Occur/MUST)))
-            (println query)
             (.deleteDocuments writer query)))))))
 
 (defn delete-document
