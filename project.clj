@@ -1,4 +1,4 @@
-(defproject ceterumnet-zclucy "0.9.3"
+(defproject ceterumnet-zclucy "0.9.4"
   :description "A Clojure interface to the Lucene search engine"
   :url "http://github.com/ceterumnet/clucy"
   :dependencies [[org.clojure/clojure "1.4.0"]
