@@ -16,6 +16,18 @@
              {:name "White" :sal 20.5}])
 
 
+(def dashed-people [{:name "Person-Miles" :age 36}
+                  {:name "Person-Emily" :age 0.3}
+                  {:name "Person-Joanna" :age 34}
+                  {:name "Person-Melinda" :age 34}
+                  {:name "Person-Mary" :age 48}
+                  {:name "Person-Mary Lou" :age 39}
+                  {:name "Person-Baby" :age -1}
+                  {:name "CVE-2011-2012" :age 21 :title "A.B"}
+                  {:name "Person-White" :sal 20.5}])
+
+(def dashed-schema {:_id [:name] :name {:type "string" :analyzed false} :age {:type "int" }} )
+
 (deftest core
 
   (testing "memory-index fn"
@@ -49,25 +61,25 @@
       (is (== 0 (count (search index "name:miles AND age:100" 10))))
       (is (== 0 (count (search index "name:miles age:100" 10 :default-operator :and))))
       (is (= [{:name "Miles" :age 36 }] (search index "name:miles" 10)))
-      (is (= [ {:name "Mary" :age 48} {:name "Mary Lou" :age 39}] 
+      (is (= [ {:name "Mary" :age 48} {:name "Mary Lou" :age 39}]
                (search index "age:[39 TO 48]" 10)) )
       (is (= {:name "Mary" :age 48} (first (search index "*:*" 10 :sort-by "age desc"))))
       (is (= {:name "Baby" :age -1} (first (search index "age:\\-1" 10)) ))
        (is (= {:name "White" :sal 20.5} (first (search index "sal:20.5" 10)) ))
       (is (= {:name "White" :sal 20.5} (first (search index "sal:[20 TO 21]" 10)) ))
       (is (= {:name "Jack" :age 21 :title "A.B"} (first (search index "title:A.B" 10)))))))
-  
+
   (testing "collect doc for avg, sum, max, min"
            (let [index (memory-index people-schema)
                    avg (atom 0) sum (atom 0) max (atom 0) min (atom 0)]
              (apply add index people)
-             (search index "age:[34 TO 48]" 100 :fields [:age] 
+             (search index "age:[34 TO 48]" 100 :fields [:age]
                      :doc-collector (fn [{age :age} i total]
                                                  (println "i:" i ",total: " total ",age:" age)
                                                  (swap! sum + age)
                                                  (when (or (= i 0) (> @min age)) (reset! min age))
                                                  (when (or (= i 0) (> age @max)) (reset! max age))
-                                                 (when (= i (dec total)) 
+                                                 (when (= i (dec total))
                                                    (reset! avg  (/ @sum total)))))
              (let [ages (->> people (filter #(and (:age %) (<= 34 (:age %) 48))) (map :age)), rsum (reduce + ages)]
                (is (= rsum @sum))
@@ -108,21 +120,43 @@
              (is (= {:name "Mary" :age 48} (first r)))
              (is (nil? (meta (first r))))
              ))
-  
+
   (testing "parallel index"
            (let [index (memory-index), total (atom 0) rc (atom 0),  reportor (fn [c] (swap! rc inc) (swap! total + c))]
              (padd index reportor (for [i (range 654321)] {:id i }))
              (is (= 654321 @rc))
              (is (= (/ (* 654321 654322) 2) @total))
              (is (= 654321 (-> (search index "*:*" 1) (meta) :_total-hits)))))
-  
+
   (testing "upsert index"
            (let [index (memory-index people-schema)]
              (doseq [p people] (add index p))
              (upsert index {:name "Jack" :age 21 :title "VP"})
              (is (== 1 (count (search index "name:jack" 10))))
              (is (= {:name "Jack" :age 21 :title "VP"} (first (search index "name:jack" 10))))))
-  
+
+  (testing "upsert index with dash"
+           (let [index (memory-index dashed-schema)]
+             (doseq [p dashed-people] (add index p))
+             (upsert index {:name "CVE-2011-2012" :age 21 :title "VP"})
+             (is (== 1 (count (search index "name:CVE-2011-2012" 10))))
+             (is (= {:name "CVE-2011-2012" :age 21 :title "VP"} (first (search index "name:CVE-2011-2012" 10))))))
+
+
+  (testing "delete index with dash"
+           (let [index (memory-index dashed-schema)]
+             (doseq [p dashed-people] (add index p))
+             (upsert index {:name "CVE-2011-2012" :age 21 :title "VP"})
+             (is (== 1 (count (search index "name:CVE-2011-2012" 10))))
+             (is (= {:name "CVE-2011-2012" :age 21 :title "VP"} (first (search index "name:CVE-2011-2012" 10))))
+             (delete-document index {:name "CVE-2011-2012" })
+             (is (== 0 (count (search index "name:CVE-2011-2012" 10))))))
+
+  (testing "make id term singular"
+    (binding [*schema-hints* dashed-schema]
+      (let [term (make-id-term {:name "CVE-2013-1111"})]
+        (is (.equals  "CVE-2013-1111"  (.text term))))))
+
   (testing "pagination"
     (let [index (memory-index)]
       (doseq [person people] (add index person))

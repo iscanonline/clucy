@@ -1,4 +1,4 @@
-ZClucy 
+ZClucy
 =====
 
 [![Build Status](https://secure.travis-ci.org/yxzhang/clucy.png?branch=master)](http://travis-ci.org/yxzhang/clucy)
@@ -6,7 +6,7 @@ ZClucy
 ZClucy is forked from clucy  a Clojure interface to [Lucene](http://lucene.apache.org/).
 There are some enhanced futures in ZClucy :
 
-1. Supports numeric values (such as int, long, float double)  
+1. Supports numeric values (such as int, long, float double)
 1. Supports multivalued fileds.
 1. Supports to sort results
 1. Supports parallel indexing large number of data
@@ -22,7 +22,7 @@ To install Clucy, add the following dependency to your `project.clj`
 file:
 
 ```clojure
-    [zclucy "0.9.2"]
+    [ceterumnet-zclucy "0.9.2"]
 ```
 
 Usage
@@ -75,7 +75,7 @@ scientists...
 
 ```clojure
     (clucy/search-and-delete index "job:scientist")
-```    
+```
 
 Manipulate Schema
 --------------
@@ -131,7 +131,7 @@ You can add maps with numeric value to the index:
        {:name "Bob", :age (int 20)}
        {:name "Donald", :age (int 35)}))
 ```
-       
+
 Once maps have been added, the index can be searched:
 
 ```clojure
@@ -139,7 +139,7 @@ Once maps have been added, the index can be searched:
 	      (clucy/search index "age:20" 10))
 	({:age 20, :name "Bob"})
 ```
-	
+
 Or do range query just as :
 
 ```clojure
@@ -153,7 +153,7 @@ Numberic type can be one of  int, long, double, float.
 Multivalued Fields
 --------------
 
-You can use clojure collection to manage multivalued fields, eg. 
+You can use clojure collection to manage multivalued fields, eg.
 
 ```clojure
     (clucy/add index
@@ -199,7 +199,7 @@ Or sort  by document number (index order) :
 ((binding [clucy/*schema-hints* people-schema]
           (clucy/search index "*:*" 10 :sort-by "$doc asc"))
 ```
-          
+
 Or sort by  document score (relevance):
 
 ```clojure
@@ -215,12 +215,12 @@ When you want to index a large number of data such as data from a large text fil
 ```clojure
     (with-open [r (clojure.java.io/reader file)]
        (let [stime (System/currentTimeMillis)
-               reporter (fn [n] 
+               reporter (fn [n]
                                  (when (= (mod n 100000) 0) ; print process per 100K
                                    (println n " cost:"(- (System/currentTimeMillis) stime)))) ]
-                (clucy/padd index reporter 
-                      (map 
-                              #(let [row (clojure.string/split % #"\s+")] 
+                (clucy/padd index reporter
+                      (map
+                              #(let [row (clojure.string/split % #"\s+")]
                                                 {:id (row 0), :name (row 1) })
                                                  (line-seq r)))))
 ```
@@ -259,10 +259,19 @@ Load certain stored fields and fast collect field values for statistics   (eg. s
                                                  (swap! sum + age)
                                                  (when (or (= i 0) (> @min age)) (reset! min age))
                                                  (when (or (= i 0) (> age @max)) (reset! max age))
-                                                 (when (= i (dec total)) 
+                                                 (when (= i (dec total))
                                                    (reset! avg  (/ @sum total)))))
 ```
 
+
+
+Delete Document *(deletes any document with term)
+--------------------
+
+```clojure
+    (clucy/delete-document index
+       {:name "Bob"})
+```
 
 Default Search Field
 --------------------
